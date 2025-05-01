@@ -1,0 +1,53 @@
+<!-- templates/goal_setup.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Set Up New Goal</title>
+    <style>
+        /* Basic styling for readability */
+        body { font-family: sans-serif; margin: 20px; }
+        label { display: block; margin-top: 15px; font-weight: bold; }
+        input[type="text"], textarea { width: 90%; max-width: 500px; padding: 8px; margin-top: 5px; border: 1px solid #ccc; }
+        textarea { height: 100px; }
+        button { padding: 10px 15px; margin-top: 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .error { color: red; margin-top: 5px;}
+    </style>
+</head>
+<body>
+    <h1>Set Up a New Goal</h1>
+
+    {% if error %}
+        <p class="error"><strong>Error:</strong> {{ error }}</p>
+    {% endif %}
+
+    <form method="post">
+        <div>
+            <label for="description">What is the specific goal you want to achieve?</label>
+            <input type="text" id="description" name="description" required>
+        </div>
+
+        <div>
+            <label for="target_date">What's your ideal timeline (e.g., YYYY-MM-DD)? (Optional)</label>
+            <input type="text" id="target_date" name="target_date">
+            <small>Leave blank if no specific deadline yet.</small>
+        </div>
+
+        <div>
+            <label for="positive_reasons">What are the Top 5 reasons this goal truly matters to you?</label>
+            <textarea id="positive_reasons" name="positive_reasons" required></textarea>
+            <small>Be specific! Why do you *really* want this?</small>
+        </div>
+
+        <div>
+            <label for="consequences">What might the future look like in 5 years if you *don't* take action?</label>
+            <textarea id="consequences" name="consequences" required></textarea>
+            <small>What downsides are you trying to avoid?</small>
+        </div>
+
+        <button type="submit">Save Goal</button>
+    </form>
+</body>
+</html>
