@@ -6,21 +6,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Set Up New Goal</title>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333;}
-        .container { max-width: 700px; margin: 30px auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-        label { display: block; margin-top: 20px; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input[type="text"], input[type="date"], textarea { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
-        textarea { min-height: 120px; resize: vertical; }
-        input[type="date"] { color: #555; } /* Make date input less intrusive */
-        small { display: block; margin-top: 5px; color: #6c757d; font-size: 0.9em; }
-        button { padding: 12px 20px; margin-top: 25px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; transition: background-color 0.2s ease; }
-        button:hover { background-color: #0056b3; }
-        .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
+        /* Basic styling for consistency and readability */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; line-height: 1.6; }
+        .container { max-width: 700px; margin: 30px auto; background-color: #fff; padding: 30px 40px; border-radius: 8px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
+        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 25px; font-size: 1.8em; text-align: center; }
+        label { display: block; margin-top: 20px; margin-bottom: 8px; font-weight: 500; color: #444; font-size: 1.05em; }
+        input[type="text"], input[type="date"], textarea {
+            width: 100%;
+            box-sizing: border-box; /* Include padding and border in element's total width/height */
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background-color: #fdfdfd;
+        }
+        input[type="text"]:focus, input[type="date"]:focus, textarea:focus {
+            border-color: #007bff; /* Highlight focus */
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Add a subtle glow on focus */
+            outline: none; /* Remove default browser outline */
+            background-color: #fff;
+        }
+        textarea { min-height: 120px; resize: vertical; font-family: inherit; /* Ensure consistent font */ line-height: 1.5; }
+        input[type="date"] { color: #555; appearance: none; /* Allow better styling */ }
+        small { display: block; margin-top: 6px; color: #6c757d; font-size: 0.9em; }
+        button[type="submit"] { /* Style specifically the submit button */
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            margin-top: 30px;
+            background-color: #007bff; /* Primary blue */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 500;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+        }
+        button[type="submit"]:hover { background-color: #0056b3; box-shadow: 0 3px 6px rgba(0, 123, 255, 0.4); }
+        .back-link { display: inline-block; margin-bottom: 25px; color: #007bff; text-decoration: none; font-size: 1em; }
         .back-link:hover { text-decoration: underline; }
         /* Flash messages styling */
-        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
-        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .flash { padding: 1rem; margin-bottom: 1.5rem; border: 1px solid transparent; border-radius: .25rem; font-size: 1rem; }
+        .flash.success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+        .flash.error { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+        .flash.warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+        .flash.info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
     </style>
 </head>
 <body>
@@ -28,42 +62,42 @@
         <a href="{{ url_for('index') }}" class="back-link">« Back to Dashboard</a>
         <h1>Set Up a New Goal</h1>
 
-        <!-- Flash messages for errors -->
+        <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              {% if category == 'error' %}
-                 <div class="flash {{ category }}">{{ message }}</div>
-              {% endif %}
+              {# Display all flash messages here now, might include errors from submission #}
+              <div class="flash {{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
 
         <form method="post">
+            {# Add request.form values back on error to retain user input #}
             <div>
-                <label for="description">What is the specific goal you want to achieve?</label>
+                <label for="description">🎯 What is the specific goal you want to achieve?</label>
                 <input type="text" id="description" name="description" required value="{{ request.form.description if request.form else '' }}">
             </div>
 
             <div>
-                <label for="target_date">What's your ideal timeline (e.g., YYYY-MM-DD)? (Optional)</label>
+                <label for="target_date">🗓️ What's your ideal timeline (e.g., YYYY-MM-DD)? (Optional)</label>
                 <input type="date" id="target_date" name="target_date" value="{{ request.form.target_date if request.form else '' }}">
                 <small>Leave blank if no specific deadline yet.</small>
             </div>
 
             <div>
-                <label for="positive_reasons">What are the Top 5 reasons this goal truly matters to you?</label>
+                <label for="positive_reasons">🌟 What are the Top 5 reasons this goal truly matters to you?</label>
                 <textarea id="positive_reasons" name="positive_reasons" required>{{ request.form.positive_reasons if request.form else '' }}</textarea>
-                <small>Be specific! Why do you *really* want this?</small>
+                <small>Be specific! Why do you *really* want this? (List one per line if helpful)</small>
             </div>
 
             <div>
-                <label for="consequences">What might the future look like in 5 years if you *don't* take action?</label>
+                <label for="consequences">⏳ What might the future look like in 5 years if you *don't* take action?</label>
                 <textarea id="consequences" name="consequences" required>{{ request.form.consequences if request.form else '' }}</textarea>
-                <small>What downsides are you trying to avoid?</small>
+                <small>What specific downsides are you motivated to avoid?</small>
             </div>
 
-            <button type="submit">Save Goal</button>
+            <button type="submit">Save Goal & Get Started</button>
         </form>
     </div>
 </body>

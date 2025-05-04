@@ -6,22 +6,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Coach Agent Dashboard</title>
      <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
-        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        /* Basic styling for consistency and readability */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 25px 30px; border-radius: 8px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
         h1, h2 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        ul { list-style: none; padding: 0; }
-        li { background-color: #fff; border: 1px solid #ddd; margin-bottom: 10px; padding: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
-        li:hover { background-color: #f0f0f0; }
-        li a { text-decoration: none; color: #007bff; font-weight: bold; font-size: 1.1em; }
-        li a:hover { text-decoration: underline; }
-        li span { color: #6c757d; font-size: 0.9em; background-color: #e9ecef; padding: 3px 8px; border-radius: 10px; }
-        .add-goal-link { display: inline-block; margin-top: 20px; padding: 12px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-size: 1em; transition: background-color 0.2s ease; }
-        .add-goal-link:hover { background-color: #218838; }
-        .no-goals { color: #6c757d; }
+        h1 { font-size: 2em; margin-bottom: 0.75em; }
+        h2 { font-size: 1.6em; margin-top: 1.5em; margin-bottom: 1em; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { background-color: #fff; border: 1px solid #ddd; margin-bottom: 12px; padding: 15px 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; transition: box-shadow 0.2s ease, transform 0.2s ease; }
+        li:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        li a { text-decoration: none; color: #007bff; font-weight: 500; font-size: 1.1em; margin-right: 15px; }
+        li a:hover { text-decoration: underline; color: #0056b3; }
+        li span { /* Goal Status */
+            color: #6c757d;
+            font-size: 0.9em;
+            background-color: #e9ecef;
+            padding: 4px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            flex-shrink: 0; /* Prevent status from shrinking too much */
+        }
+        .add-goal-link {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 12px 22px;
+            background-color: #28a745; /* Green */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.05em;
+            font-weight: 500;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3); /* Subtle shadow */
+            text-align: center;
+        }
+        .add-goal-link:hover { background-color: #218838; box-shadow: 0 3px 6px rgba(40, 167, 69, 0.4); }
+        .no-goals { color: #6c757d; font-style: italic; margin-top: 1em; }
         /* Flash messages styling */
-        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
-        .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
-        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .flash { padding: 1rem; margin-bottom: 1.5rem; border: 1px solid transparent; border-radius: .25rem; font-size: 1rem; }
+        .flash.success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+        .flash.error { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+        .flash.warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+        .flash.info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
     </style>
 </head>
 <body>
@@ -50,10 +76,10 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p class="no-goals">You haven't set up any active goals yet.</p>
+            <p class="no-goals">You haven't set up any active goals yet. Time to add one!</p>
         {% endif %}
 
-        <a href="{{ url_for('setup_goal') }}" class="add-goal-link">Set Up a New Goal</a>
+        <a href="{{ url_for('setup_goal') }}" class="add-goal-link">🚀 Set Up a New Goal</a>
     </div>
 </body>
 </html>

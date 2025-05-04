@@ -1,6 +1,6 @@
 -- schema.sql
 
--- Drop existing tables if they exist (useful for resetting)
+-- Drop existing tables in reverse order of dependency
 DROP TABLE IF EXISTS tasks;
 DROP TABLE IF EXISTS goals;
 DROP TABLE IF EXISTS users;
@@ -36,8 +36,9 @@ CREATE TABLE tasks (
     completion_date TIMESTAMP,
     estimated_time TEXT, -- e.g., "15 minutes", "1 hour"
     creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (goal_id) REFERENCES goals (goal_id)
+    FOREIGN KEY (goal_id) REFERENCES goals (goal_id) ON DELETE CASCADE -- Optional: Delete tasks if goal is deleted
 );
 
 -- Add initial default user (important for the app to work as coded)
+-- Using INSERT OR IGNORE to prevent errors if the user already exists
 INSERT OR IGNORE INTO users (user_id, username, preferences) VALUES (1, 'default_user', '{}');

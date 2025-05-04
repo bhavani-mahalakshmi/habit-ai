@@ -6,67 +6,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Goal Details - {{ goal.description if goal else 'Error' }}</title>
      <style>
-        /* Basic styling */
-        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
-        .container { max-width: 800px; margin: 30px auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        /* Basic styling for consistency and readability */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 30px auto; background-color: #fff; padding: 25px 30px; border-radius: 8px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
         h1, h2, h3 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 15px;}
-        h1 { font-size: 1.8em; }
+        h1 { font-size: 1.8em; margin-bottom: 0.75em; }
         h2 { font-size: 1.5em; margin-top: 30px; }
-        h3 { font-size: 1.2em; margin-top: 20px; border-bottom: none; }
+        h3 { font-size: 1.2em; margin-top: 20px; border-bottom: none; color: #333; }
         .goal-details, .tasks-list, .add-task-form { background-color: #fff; border: 1px solid #e0e0e0; margin-bottom: 25px; padding: 20px; border-radius: 6px; }
         .goal-details p { margin-bottom: 12px; line-height: 1.6; }
-        .goal-details strong { color: #333; margin-right: 5px; }
+        .goal-details strong { color: #333; margin-right: 5px; font-weight: 500; }
         .motivation-section { margin-top: 15px; padding-left: 15px; border-left: 3px solid #007bff; }
-        .motivation { font-style: italic; color: #555; white-space: pre-wrap; /* Preserve line breaks */ } /* Updated for line breaks */
-        .tasks-list ul { list-style: none; padding: 0; }
+        .motivation { font-style: normal; color: #555; white-space: pre-wrap; /* Preserve line breaks */ line-height: 1.7; }
+        .tasks-list ul { list-style: none; padding: 0; margin: 0; }
         .tasks-list li {
             border-bottom: 1px dashed #ddd;
             padding: 12px 0;
-            display: flex; /* Use flexbox for alignment */
-            justify-content: space-between; /* Pushes info and actions apart */
-            align-items: center; /* Vertically aligns items */
-            flex-wrap: wrap; /* Allows actions to wrap on small screens if needed */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px; /* Add gap between info and actions */
         }
         .tasks-list li:last-child { border-bottom: none; }
-        .task-info { flex-grow: 1; margin-right: 10px; } /* Allow info to take available space */
+        .task-info { flex-grow: 1; margin-right: 10px; }
+        .task-info strong { font-weight: 500; color: #333;} /* Make task desc stand out */
         .task-info span { display: block; font-size: 0.9em; color: #6c757d; margin-top: 3px; }
-        .task-status-Planned { color: #ffc107; font-weight: bold; } /* Yellow */
+        .task-status-Planned { color: #ff8c00; font-weight: bold; } /* Orange-Yellow for Planned */
         .task-status-Completed { color: #28a745; font-weight: bold; } /* Green */
         .task-status-Missed { color: #dc3545; font-weight: bold; } /* Red */
-        label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input[type="text"], input[type="date"] { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
-        button { padding: 10px 18px; margin-top: 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease; }
-        button:hover { background-color: #0056b3; }
-        .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; font-size: 1em; }
+        label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: 500; color: #555; }
+        input[type="text"], input[type="date"] { width: 100%; box-sizing: border-box; padding: 12px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; background-color: #fdfdfd;}
+        input[type="text"]:focus, input[type="date"]:focus { border-color: #007bff; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); outline: none; background-color: #fff; }
+        button[type="submit"], .task-actions button { padding: 10px 18px; margin-top: 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: 500; transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+        button[type="submit"]:hover, .task-actions button:hover { background-color: #0056b3; }
+        button[type="submit"] { width: 100%; margin-top: 20px;} /* Specific for Add Task button */
+        .back-link { display: inline-block; margin-bottom: 25px; color: #007bff; text-decoration: none; font-size: 1em; }
         .back-link:hover { text-decoration: underline; }
 
-        /* Styles for task actions */
-        .task-actions { margin-left: 10px; white-space: nowrap; flex-shrink: 0; /* Prevent actions from shrinking too much */}
-        .task-actions form { display: inline-block; margin-left: 5px; margin-top: 5px; /* Add some space for wrapped buttons */ }
-        .task-actions button {
-            padding: 5px 10px;
-            font-size: 0.8em;
-            cursor: pointer;
-            border-radius: 4px;
-            border: 1px solid transparent;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            margin-top: 0; /* Override default button margin */
-            vertical-align: middle; /* Align buttons better if text wraps */
+        /* Styles for task action buttons */
+        .task-actions { white-space: nowrap; flex-shrink: 0; }
+        .task-actions form { display: inline-block; margin-left: 5px; margin-top: 5px; }
+        .task-actions button { /* Specific styles for action buttons */
+            padding: 6px 12px;
+            font-size: 0.85em;
+            margin-top: 0;
+            vertical-align: middle;
         }
-        .task-actions .btn-complete { background-color: #28a745; color: white; border-color: #218838;}
+        .task-actions .btn-complete { background-color: #28a745; border-color: #218838;}
         .task-actions .btn-complete:hover { background-color: #218838; }
-        .task-actions .btn-missed { background-color: #dc3545; color: white; border-color: #c82333;}
+        .task-actions .btn-missed { background-color: #dc3545; border-color: #c82333;}
         .task-actions .btn-missed:hover { background-color: #c82333; }
         .task-actions .btn-reset { background-color: #ffc107; color: #333; border-color: #e0a800;}
         .task-actions .btn-reset:hover { background-color: #e0a800; }
 
-        /* Flash messages styling */
-        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
-        .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
-        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
-        .flash.warning { color: #856404; background-color: #fff3cd; border-color: #ffeeba; }
-        .flash.info { color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
+        /* Style for AI coach message box */
+        .ai-coach-message {
+            background-color: #e7f3fe; /* Light blue background */
+            border-left: 5px solid #007bff; /* Blue accent border */
+            padding: 15px 20px;
+            margin-top: 20px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+            font-style: italic;
+            color: #004085; /* Darker blue text */
+            line-height: 1.7;
+        }
+        .ai-coach-message strong {
+            font-style: normal; /* Make the title not italic */
+            display: block;
+            margin-bottom: 5px;
+            color: #0056b3; /* Match heading color */
+            font-weight: 500;
+            font-size: 1.05em;
+        }
 
+        /* Flash messages styling */
+        .flash { padding: 1rem; margin-bottom: 1.5rem; border: 1px solid transparent; border-radius: .25rem; font-size: 1rem; }
+        .flash.success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+        .flash.error { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+        .flash.warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
+        .flash.info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
     </style>
 </head>
 <body>
@@ -85,6 +105,15 @@
         {% if goal %}
             <h1>Goal: {{ goal['description'] }}</h1>
 
+            <!-- AI Coach Message Section -->
+            {% if ai_message %}
+            <div class="ai-coach-message">
+                <strong>✨ Coach's Corner:</strong>
+                {{ ai_message }}
+            </div>
+            {% endif %}
+            <!-- End AI Coach Message Section -->
+
             <!-- Goal Details Section -->
             <div class="goal-details">
                <h3>Details & Motivations</h3>
@@ -92,14 +121,13 @@
                 {% if goal['target_date'] %}
                 <p><strong>Target Date:</strong> {{ goal['target_date'] }}</p>
                 {% endif %}
-
                 <div class="motivation-section">
                     <p><strong>Why it Matters (Your Reasons):</strong></p>
-                    <p class="motivation">{{ goal['positive_reasons'] | replace('\r\n', '<br>') | replace('\n', '<br>') | safe }}</p> <!-- Handle Windows & Unix line breaks -->
+                    <p class="motivation">{{ goal['positive_reasons'] | replace('\r\n', '<br>') | replace('\n', '<br>') | safe }}</p>
                 </div>
                  <div class="motivation-section">
                     <p><strong>Consequences of Inaction (Your Reminder):</strong></p>
-                    <p class="motivation">{{ goal['consequences_of_inaction'] | replace('\r\n', '<br>') | replace('\n', '<br>') | safe }}</p> <!-- Handle Windows & Unix line breaks -->
+                    <p class="motivation">{{ goal['consequences_of_inaction'] | replace('\r\n', '<br>') | replace('\n', '<br>') | safe }}</p>
                 </div>
             </div>
 
@@ -118,15 +146,15 @@
                                     {% if task['status'] == 'Planned' %}
                                         {# Show Complete/Missed buttons only if task is Planned #}
                                         <form method="post" action="{{ url_for('mark_task_complete', task_id=task['task_id']) }}">
-                                            <button type="submit" class="btn-complete">✔ Complete</button>
+                                            <button type="submit" class="btn-complete" title="Mark as Completed">✔</button> {# Shorter text/icon #}
                                         </form>
                                         <form method="post" action="{{ url_for('mark_task_missed', task_id=task['task_id']) }}">
-                                            <button type="submit" class="btn-missed">❌ Missed</button>
+                                            <button type="submit" class="btn-missed" title="Mark as Missed">❌</button> {# Shorter text/icon #}
                                         </form>
                                     {% else %}
                                         {# Show Reset button if task is Completed or Missed #}
                                         <form method="post" action="{{ url_for('reset_task_status', task_id=task['task_id']) }}">
-                                             <button type="submit" class="btn-reset">↺ Reset</button>
+                                             <button type="submit" class="btn-reset" title="Reset status to Planned">↺</button> {# Shorter text/icon #}
                                          </form>
                                     {% endif %}
                                 </div>
@@ -140,9 +168,8 @@
 
             <!-- Add Task Form Section -->
             <div class="add-task-form">
-                <h3>Add a New Daily Task</h3>
-                {# Point form submission to the goal_detail route itself for adding tasks #}
-                <form method="post" action="{{ url_for('goal_detail', goal_id=goal['goal_id']) }}">
+               <h3>Add a New Daily Task</h3>
+                <form method="post" action="{{ url_for('goal_detail', goal_id=goal['goal_id']) }}"> {# Form POSTs to the current page to add task #}
                     <div>
                         <label for="task_description">Task Description:</label>
                         <input type="text" id="task_description" name="task_description" required>
@@ -156,9 +183,9 @@
             </div>
 
         {% else %}
-            {# Display if goal object is None (e.g., invalid ID or error fetching) #}
+            {# Only show if goal itself could not be found, typically handled by redirect now #}
              <h1>Goal Not Found</h1>
-             <p>The goal you requested could not be found or accessed.</p>
+             <p>The goal you requested could not be found or accessed. Please return to the dashboard.</p>
         {% endif %}
     </div>
 
