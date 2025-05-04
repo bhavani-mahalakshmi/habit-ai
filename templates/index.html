@@ -1,0 +1,59 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Coach Agent Dashboard</title>
+     <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        ul { list-style: none; padding: 0; }
+        li { background-color: #fff; border: 1px solid #ddd; margin-bottom: 10px; padding: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
+        li:hover { background-color: #f0f0f0; }
+        li a { text-decoration: none; color: #007bff; font-weight: bold; font-size: 1.1em; }
+        li a:hover { text-decoration: underline; }
+        li span { color: #6c757d; font-size: 0.9em; background-color: #e9ecef; padding: 3px 8px; border-radius: 10px; }
+        .add-goal-link { display: inline-block; margin-top: 20px; padding: 12px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-size: 1em; transition: background-color 0.2s ease; }
+        .add-goal-link:hover { background-color: #218838; }
+        .no-goals { color: #6c757d; }
+        /* Flash messages styling */
+        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
+        .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Coach Agent Dashboard</h1>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <h2>Active Goals</h2>
+        {% if goals %}
+            <ul>
+                {% for goal in goals %}
+                    <li>
+                        <a href="{{ url_for('goal_detail', goal_id=goal['goal_id']) }}">
+                            {{ goal['description'] }}
+                        </a>
+                        <span>Status: {{ goal['status'] }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="no-goals">You haven't set up any active goals yet.</p>
+        {% endif %}
+
+        <a href="{{ url_for('setup_goal') }}" class="add-goal-link">Set Up a New Goal</a>
+    </div>
+</body>
+</html>

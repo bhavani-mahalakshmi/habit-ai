@@ -1,9 +1,10 @@
 -- schema.sql
 
 -- Drop existing tables if they exist (useful for resetting)
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS goals;
 DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS goals;
+DROP TABLE IF EXISTS users;
+
 
 -- Create the users table (simplified for single user for now)
 CREATE TABLE users (
@@ -38,5 +39,5 @@ CREATE TABLE tasks (
     FOREIGN KEY (goal_id) REFERENCES goals (goal_id)
 );
 
--- Optional: Add initial user data if desired
--- INSERT INTO users (username, preferences) VALUES ('default_user', '{}');
+-- Add initial default user (important for the app to work as coded)
+INSERT OR IGNORE INTO users (user_id, username, preferences) VALUES (1, 'default_user', '{}');
