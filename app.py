@@ -203,16 +203,97 @@ def goal_detail(goal_id):
     return render_template('goal_detail.html', goal=goal, tasks=tasks, today_date=today_date)
 
 
-# --- Simple success page route (No longer needed if flashing/redirecting) ---
-# @app.route('/goal_saved')
-# def goal_saved_success():
-#     return "Goal saved successfully! <a href='/'>Go to Dashboard</a>"
+# app.py (add these routes)
+
+# ... (keep existing imports and functions: Flask, g, render_template, etc.) ...
+# ... (keep existing routes: index, setup_goal, goal_detail) ...
+
+@app.route('/task/<int:task_id>/complete', methods=['POST'])
+def mark_task_complete(task_id):
+    """Marks a task as Completed."""
+    db = get_db()
+    try:
+        # First, get the goal_id associated with the task to redirect back correctly
+        task = db.execute("SELECT goal_id FROM tasks WHERE task_id = ? AND goal_id IN (SELECT goal_id FROM goals WHERE user_id = ?)",
+                          (task_id, DEFAULT_USER_ID)).fetchone()
+
+        if task:
+            goal_id = task['goal_id']
+            completion_time = datetime.datetime.now() # Record completion time
+            db.execute("UPDATE tasks SET status = 'Completed', completion_date = ? WHERE task_id = ?",
+                       (completion_time, task_id))
+            db.commit()
+            flash(f"Task marked as Completed!", "success")
+            print(f"Task {task_id} marked complete.")
+            return redirect(url_for('goal_detail', goal_id=goal_id))
+        else:
+            flash("Task not found or not accessible.", "error")
+            return redirect(url_for('index')) # Redirect to dashboard if task/goal invalid
+
+    except sqlite3.Error as e:
+        flash(f"Database error updating task: {e}", "error")
+        print(f"DB error completing task {task_id}: {e}")
+        # Try to redirect back, but goal_id might not be available if the initial fetch failed
+        # A safer bet might be redirecting to index if we can't determine the goal_id
+        return redirect(url_for('index')) # Or handle more gracefully
+
+@app.route('/task/<int:task_id>/missed', methods=['POST'])
+def mark_task_missed(task_id):
+    """Marks a task as Missed."""
+    db = get_db()
+    try:
+        # Get the goal_id for redirection
+        task = db.execute("SELECT goal_id FROM tasks WHERE task_id = ? AND goal_id IN (SELECT goal_id FROM goals WHERE user_id = ?)",
+                          (task_id, DEFAULT_USER_ID)).fetchone()
+
+        if task:
+            goal_id = task['goal_id']
+            # Set status to Missed, clear completion date if any
+            db.execute("UPDATE tasks SET status = 'Missed', completion_date = NULL WHERE task_id = ?",
+                       (task_id,))
+            db.commit()
+            flash(f"Task marked as Missed.", "warning") # Use warning category?
+            print(f"Task {task_id} marked missed.")
+            return redirect(url_for('goal_detail', goal_id=goal_id))
+        else:
+            flash("Task not found or not accessible.", "error")
+            return redirect(url_for('index'))
+
+    except sqlite3.Error as e:
+        flash(f"Database error updating task: {e}", "error")
+        print(f"DB error marking task {task_id} missed: {e}")
+        return redirect(url_for('index'))
 
 
-# --- Main execution ---
+@app.route('/task/<int:task_id>/reset', methods=['POST'])
+def reset_task_status(task_id):
+    """Resets a task status back to Planned."""
+    db = get_db()
+    try:
+        # Get the goal_id for redirection
+        task = db.execute("SELECT goal_id FROM tasks WHERE task_id = ? AND goal_id IN (SELECT goal_id FROM goals WHERE user_id = ?)",
+                          (task_id, DEFAULT_USER_ID)).fetchone()
+
+        if task:
+            goal_id = task['goal_id']
+            # Set status back to Planned, clear completion date
+            db.execute("UPDATE tasks SET status = 'Planned', completion_date = NULL WHERE task_id = ?",
+                       (task_id,))
+            db.commit()
+            flash(f"Task status reset to Planned.", "info")
+            print(f"Task {task_id} status reset.")
+            return redirect(url_for('goal_detail', goal_id=goal_id))
+        else:
+            flash("Task not found or not accessible.", "error")
+            return redirect(url_for('index'))
+
+    except sqlite3.Error as e:
+        flash(f"Database error updating task: {e}", "error")
+        print(f"DB error resetting task {task_id}: {e}")
+        return redirect(url_for('index'))
+
+
+# --- (Make sure your if __name__ == '__main__': block is still at the end) ---
 if __name__ == '__main__':
     print("Starting Flask application...")
-    # Run init_db_command once explicitly before starting if needed,
-    # or rely on the before_request handler.
-    # init_db_command() # Optional: Ensure DB is checked/created before first request
-    app.run(debug=True) # debug=True reloads on code change and shows errors in browser
+    app.run(debug=True)

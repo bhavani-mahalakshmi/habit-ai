@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Goal Details - {{ goal.description if goal else 'Error' }}</title>
      <style>
+        /* Basic styling */
         body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
         .container { max-width: 800px; margin: 30px auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1, h2, h3 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 15px;}
@@ -18,22 +19,54 @@
         .motivation-section { margin-top: 15px; padding-left: 15px; border-left: 3px solid #007bff; }
         .motivation { font-style: italic; color: #555; white-space: pre-wrap; /* Preserve line breaks */ } /* Updated for line breaks */
         .tasks-list ul { list-style: none; padding: 0; }
-        .tasks-list li { border-bottom: 1px dashed #ddd; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
+        .tasks-list li {
+            border-bottom: 1px dashed #ddd;
+            padding: 12px 0;
+            display: flex; /* Use flexbox for alignment */
+            justify-content: space-between; /* Pushes info and actions apart */
+            align-items: center; /* Vertically aligns items */
+            flex-wrap: wrap; /* Allows actions to wrap on small screens if needed */
+        }
         .tasks-list li:last-child { border-bottom: none; }
+        .task-info { flex-grow: 1; margin-right: 10px; } /* Allow info to take available space */
         .task-info span { display: block; font-size: 0.9em; color: #6c757d; margin-top: 3px; }
-        .task-status-Planned { color: #ffc107; } /* Yellow */
-        .task-status-Completed { color: #28a745; } /* Green */
-        .task-status-Missed { color: #dc3545; } /* Red */
+        .task-status-Planned { color: #ffc107; font-weight: bold; } /* Yellow */
+        .task-status-Completed { color: #28a745; font-weight: bold; } /* Green */
+        .task-status-Missed { color: #dc3545; font-weight: bold; } /* Red */
         label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #555; }
         input[type="text"], input[type="date"] { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
         button { padding: 10px 18px; margin-top: 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease; }
         button:hover { background-color: #0056b3; }
         .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; font-size: 1em; }
         .back-link:hover { text-decoration: underline; }
+
+        /* Styles for task actions */
+        .task-actions { margin-left: 10px; white-space: nowrap; flex-shrink: 0; /* Prevent actions from shrinking too much */}
+        .task-actions form { display: inline-block; margin-left: 5px; margin-top: 5px; /* Add some space for wrapped buttons */ }
+        .task-actions button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            margin-top: 0; /* Override default button margin */
+            vertical-align: middle; /* Align buttons better if text wraps */
+        }
+        .task-actions .btn-complete { background-color: #28a745; color: white; border-color: #218838;}
+        .task-actions .btn-complete:hover { background-color: #218838; }
+        .task-actions .btn-missed { background-color: #dc3545; color: white; border-color: #c82333;}
+        .task-actions .btn-missed:hover { background-color: #c82333; }
+        .task-actions .btn-reset { background-color: #ffc107; color: #333; border-color: #e0a800;}
+        .task-actions .btn-reset:hover { background-color: #e0a800; }
+
         /* Flash messages styling */
         .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
         .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
         .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .flash.warning { color: #856404; background-color: #fff3cd; border-color: #ffeeba; }
+        .flash.info { color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
+
     </style>
 </head>
 <body>
@@ -52,8 +85,9 @@
         {% if goal %}
             <h1>Goal: {{ goal['description'] }}</h1>
 
+            <!-- Goal Details Section -->
             <div class="goal-details">
-                <h3>Details & Motivations</h3>
+               <h3>Details & Motivations</h3>
                 <p><strong>Status:</strong> {{ goal['status'] }}</p>
                 {% if goal['target_date'] %}
                 <p><strong>Target Date:</strong> {{ goal['target_date'] }}</p>
@@ -69,17 +103,33 @@
                 </div>
             </div>
 
+            <!-- Tasks List Section -->
             <div class="tasks-list">
                 <h2>Tasks for this Goal</h2>
                 {% if tasks %}
                     <ul>
                         {% for task in tasks %}
-                            <li>
+                            <li> {# List item now uses flexbox #}
                                 <div class="task-info">
                                     <strong>{{ task['description'] }}</strong>
                                     <span>Due: {{ task['due_date'] }} | <strong class="task-status-{{ task['status'] }}">Status: {{ task['status'] }}</strong></span>
                                 </div>
-                                <!-- Add Task Action Buttons Here Later (Mark Complete/Missed) -->
+                                <div class="task-actions">
+                                    {% if task['status'] == 'Planned' %}
+                                        {# Show Complete/Missed buttons only if task is Planned #}
+                                        <form method="post" action="{{ url_for('mark_task_complete', task_id=task['task_id']) }}">
+                                            <button type="submit" class="btn-complete">✔ Complete</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('mark_task_missed', task_id=task['task_id']) }}">
+                                            <button type="submit" class="btn-missed">❌ Missed</button>
+                                        </form>
+                                    {% else %}
+                                        {# Show Reset button if task is Completed or Missed #}
+                                        <form method="post" action="{{ url_for('reset_task_status', task_id=task['task_id']) }}">
+                                             <button type="submit" class="btn-reset">↺ Reset</button>
+                                         </form>
+                                    {% endif %}
+                                </div>
                             </li>
                         {% endfor %}
                     </ul>
@@ -88,9 +138,11 @@
                 {% endif %}
             </div>
 
+            <!-- Add Task Form Section -->
             <div class="add-task-form">
                 <h3>Add a New Daily Task</h3>
-                <form method="post"> {# Form submits to the current URL (/goal/<goal_id>) #}
+                {# Point form submission to the goal_detail route itself for adding tasks #}
+                <form method="post" action="{{ url_for('goal_detail', goal_id=goal['goal_id']) }}">
                     <div>
                         <label for="task_description">Task Description:</label>
                         <input type="text" id="task_description" name="task_description" required>
@@ -104,8 +156,7 @@
             </div>
 
         {% else %}
-            {# If goal is None, likely because flash message already shown and redirected #}
-            {# Or if navigated directly to a non-existent goal ID #}
+            {# Display if goal object is None (e.g., invalid ID or error fetching) #}
              <h1>Goal Not Found</h1>
              <p>The goal you requested could not be found or accessed.</p>
         {% endif %}
