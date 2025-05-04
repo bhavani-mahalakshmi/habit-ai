@@ -110,7 +110,7 @@ def generate_gemini_message(prompt_text):
 
     try:
         print(f"🧠 Sending prompt to Gemini (first 100 chars): '{prompt_text[:100]}...'")
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
 
         # Configure safety settings (optional but recommended)
         safety_settings = [
