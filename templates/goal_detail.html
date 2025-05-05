@@ -115,7 +115,6 @@
             <!-- End AI Coach Message Section -->
              <!-- Form to generate new goals based on previous goals -->
             <form method="POST" action="/generate_new_goals">
-                {% set last_week_goals_description = get_last_week_goals_descriptions() %}
                 <input type="hidden" name="last_week_goals" value="{{ last_week_goals_description }}">
                 <button type="submit">Generate new goals</button>
             </form>

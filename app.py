@@ -193,21 +193,20 @@ def generate_weekly_goals(last_week_goals):
         # Inserts goals in db
         db = get_db()
 
+        # Update the INSERT statement to include a default value for 'consequences_of_inaction'
         for description in goal_descriptions:
             db.execute(
-                "INSERT INTO goals (user_id, description, status, creation_date) VALUES (?, ?, 'Active', CURRENT_TIMESTAMP)",
-                (DEFAULT_USER_ID, description)
+                "INSERT INTO goals (user_id, description, status, creation_date, positive_reasons, consequences_of_inaction) VALUES (?, ?, 'Active', CURRENT_TIMESTAMP, ?, ?)",
+                (DEFAULT_USER_ID, description, 'Default positive reasons', 'Default consequences of inaction')
             )
         db.commit()
         print(f"✅ Weekly goals added to the database.")
         flash("Weekly goals added successfully!", "success")
     except sqlite3.Error as e:
         print(f"🔴 ERROR adding weekly goals to the database: {e}")
-        flash(f"Database error adding weekly goals: {e}", "error")
         return
     except Exception as e:
         print(f"🔴 ERROR generating weekly goals: {e}")
-        flash(f"Error generating weekly goals: {e}", "error")
         return
 
 @app.route('/generate_new_goals', methods=['POST'])
@@ -382,8 +381,11 @@ def goal_detail(goal_id):
     # Get today's date for the default due date input in the form
     today_date = datetime.date.today().isoformat()
 
+    # --- Add the result of get_last_week_goals_descriptions to the context ---
+    last_week_goals_description = get_last_week_goals_descriptions()
+
     # Pass all necessary variables to the template
-    return render_template('goal_detail.html', goal=goal, tasks=tasks, today_date=today_date, ai_message=ai_message)
+    return render_template('goal_detail.html', goal=goal, tasks=tasks, today_date=today_date, ai_message=ai_message, last_week_goals_description=last_week_goals_description)
 
 # app.py - PART 5: Task Action Routes & Main Execution
 # ==================================================
@@ -457,11 +459,12 @@ def mark_task_missed(task_id):
         return redirect(url_for('index'))
 
 # Generate the weekly goals to populate the db
-generate_weekly_goals(None)
+with app.app_context():
+    generate_weekly_goals(None)
 
-# Test generate new goals with the last week goals
-last_week_goals_description = get_last_week_goals_descriptions()
-generate_weekly_goals(last_week_goals_description)
+    # Test generate new goals with the last week goals
+    last_week_goals_description = get_last_week_goals_descriptions()
+    generate_weekly_goals(last_week_goals_description)
 @app.route('/task/<int:task_id>/reset', methods=['POST'])
 def reset_task_status(task_id):
     """Resets a task status back to Planned."""
