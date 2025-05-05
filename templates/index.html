@@ -79,6 +79,13 @@
             <p class="no-goals">You haven't set up any active goals yet. Time to add one!</p>
         {% endif %}
 
+        <!-- New Goals Generation Form -->
+        <h2>Generate New Goals</h2>
+        <form action="{{ url_for('generate_new_goals_route') }}" method="POST">
+            <input type="hidden" name="last_week_goals" value="{{ last_week_goals_description }}">
+            <button type="submit" class="add-goal-link">Generate New Goals</button>
+        </form>
+
         <a href="{{ url_for('setup_goal') }}" class="add-goal-link">🚀 Set Up a New Goal</a>
     </div>
 </body>

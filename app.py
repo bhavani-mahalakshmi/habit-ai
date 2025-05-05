@@ -150,6 +150,93 @@ def generate_gemini_message(prompt_text):
         # print(traceback.format_exc())
         return f"AI Coach message unavailable (API Error: Please check server logs)."
 
+def generate_weekly_goals(last_week_goals):
+    """
+    Generates a list of goals for the week, either randomly or based on the last week's goals.
+    If last_week_goals is None, generates random goals.
+    If last_week_goals is a string, generates new goals based on it using Gemini.
+    """
+    goal_descriptions = []
+    try:
+        db = get_db()
+        if last_week_goals is None:
+            # Generate random goals
+            goal_descriptions = [
+                "Dedicate 30 minutes daily to learning a new skill.",
+                "Engage in a physical activity for at least 4 days this week.",
+                "Read for 20 minutes each day.",
+                "Practice meditation for 15 minutes daily.",
+                "Complete a personal project milestone.",
+            ]
+        else:
+            # Generate goals based on last_week_goals using Gemini
+            prompt = f"""
+            Act as a helpful personal coach.
+            The user's goals for last week were: "{last_week_goals}".
+            Generate 3 SMART (Specific, Measurable, Achievable, Relevant, Time-bound) goals for the user for this coming week, taking into account what they were working on last week.
+            Please only return a comma separated list of goals.
+            """
+            ai_response = generate_gemini_message(prompt)
+
+            # Check if the response is an error message
+            if "AI Coach message unavailable" in ai_response or "AI Coach message blocked" in ai_response:
+                flash(ai_response, "error")
+                return  # Exit if AI response is an error
+
+            goal_descriptions = [goal.strip() for goal in ai_response.split(',') if goal.strip()]
+            
+            if not goal_descriptions:
+                print(f"🔴 ERROR: No goals generated from Gemini response: '{ai_response}'")
+                flash(f"Could not generate goals based on previous goals", "error")
+                return
+        
+        # Inserts goals in db
+        db = get_db()
+
+        for description in goal_descriptions:
+            db.execute(
+                "INSERT INTO goals (user_id, description, status, creation_date) VALUES (?, ?, 'Active', CURRENT_TIMESTAMP)",
+                (DEFAULT_USER_ID, description)
+            )
+        db.commit()
+        print(f"✅ Weekly goals added to the database.")
+        flash("Weekly goals added successfully!", "success")
+    except sqlite3.Error as e:
+        print(f"🔴 ERROR adding weekly goals to the database: {e}")
+        flash(f"Database error adding weekly goals: {e}", "error")
+        return
+    except Exception as e:
+        print(f"🔴 ERROR generating weekly goals: {e}")
+        flash(f"Error generating weekly goals: {e}", "error")
+        return
+
+@app.route('/generate_new_goals', methods=['POST'])
+def generate_new_goals_route():
+    """
+    Route for generating new goals based on last week's goals.
+    Receives last week's goals from a form and calls generate_weekly_goals.
+    """
+    last_week_goals = request.form.get('last_week_goals')
+    generate_weekly_goals(last_week_goals)
+    return redirect(url_for('index'))
+
+# --- Function to get last week's goals descriptions ---
+def get_last_week_goals_descriptions():
+    """Retrieves the descriptions of goals created last week."""
+    db = get_db()
+    try:
+        last_week_goals = db.execute(
+            "SELECT description FROM goals WHERE user_id = ? AND creation_date >= date('now', '-7 days') AND creation_date < date('now')",
+            (DEFAULT_USER_ID,)
+        ).fetchall()
+        return ", ".join([goal['description'] for goal in last_week_goals]) if last_week_goals else None
+    except sqlite3.Error as e:
+        print(f"🔴 Database error fetching last week's goals: {e}")
+        flash(f"Error fetching last week's goals: {e}", "error")
+        return None
+        # print(traceback.format_exc())
+        return f"AI Coach message unavailable (API Error: Please check server logs)."
+
 @app.route('/')
 def index():
     """Main dashboard showing active goals."""
@@ -369,7 +456,12 @@ def mark_task_missed(task_id):
     else:
         return redirect(url_for('index'))
 
+# Generate the weekly goals to populate the db
+generate_weekly_goals(None)
 
+# Test generate new goals with the last week goals
+last_week_goals_description = get_last_week_goals_descriptions()
+generate_weekly_goals(last_week_goals_description)
 @app.route('/task/<int:task_id>/reset', methods=['POST'])
 def reset_task_status(task_id):
     """Resets a task status back to Planned."""
