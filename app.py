@@ -27,7 +27,8 @@ if not GOOGLE_API_KEY:
     print("🔴 WARNING: GOOGLE_API_KEY environment variable not found. AI features will be disabled.")
 else:
     try:
-        genai.configure(api_key=GOOGLE_API_KEY)
+        # Removed the AI model configuration and call on app reload
+        # genai.configure(api_key=GOOGLE_API_KEY)
         GEMINI_CONFIGURED = True
         print("✅ Gemini API configured successfully.")
     except Exception as e:
@@ -149,75 +150,6 @@ def generate_gemini_message(prompt_text):
         # Uncomment the line below for a detailed stack trace in the console
         # print(traceback.format_exc())
         return f"AI Coach message unavailable (API Error: Please check server logs)."
-
-def generate_weekly_goals(last_week_goals):
-    """
-    Generates a list of goals for the week, either randomly or based on the last week's goals.
-    If last_week_goals is None, generates random goals.
-    If last_week_goals is a string, generates new goals based on it using Gemini.
-    """
-    goal_descriptions = []
-    try:
-        db = get_db()
-        if last_week_goals is None:
-            # Generate random goals
-            goal_descriptions = [
-                "Dedicate 30 minutes daily to learning a new skill.",
-                "Engage in a physical activity for at least 4 days this week.",
-                "Read for 20 minutes each day.",
-                "Practice meditation for 15 minutes daily.",
-                "Complete a personal project milestone.",
-            ]
-        else:
-            # Generate goals based on last_week_goals using Gemini
-            prompt = f"""
-            Act as a helpful personal coach.
-            The user's goals for last week were: "{last_week_goals}".
-            Generate 3 SMART (Specific, Measurable, Achievable, Relevant, Time-bound) goals for the user for this coming week, taking into account what they were working on last week.
-            Please only return a comma separated list of goals.
-            """
-            ai_response = generate_gemini_message(prompt)
-
-            # Check if the response is an error message
-            if "AI Coach message unavailable" in ai_response or "AI Coach message blocked" in ai_response:
-                flash(ai_response, "error")
-                return  # Exit if AI response is an error
-
-            goal_descriptions = [goal.strip() for goal in ai_response.split(',') if goal.strip()]
-            
-            if not goal_descriptions:
-                print(f"🔴 ERROR: No goals generated from Gemini response: '{ai_response}'")
-                flash(f"Could not generate goals based on previous goals", "error")
-                return
-        
-        # Inserts goals in db
-        db = get_db()
-
-        # Update the INSERT statement to include a default value for 'consequences_of_inaction'
-        for description in goal_descriptions:
-            db.execute(
-                "INSERT INTO goals (user_id, description, status, creation_date, positive_reasons, consequences_of_inaction) VALUES (?, ?, 'Active', CURRENT_TIMESTAMP, ?, ?)",
-                (DEFAULT_USER_ID, description, 'Default positive reasons', 'Default consequences of inaction')
-            )
-        db.commit()
-        print(f"✅ Weekly goals added to the database.")
-        flash("Weekly goals added successfully!", "success")
-    except sqlite3.Error as e:
-        print(f"🔴 ERROR adding weekly goals to the database: {e}")
-        return
-    except Exception as e:
-        print(f"🔴 ERROR generating weekly goals: {e}")
-        return
-
-@app.route('/generate_new_goals', methods=['POST'])
-def generate_new_goals_route():
-    """
-    Route for generating new goals based on last week's goals.
-    Receives last week's goals from a form and calls generate_weekly_goals.
-    """
-    last_week_goals = request.form.get('last_week_goals')
-    generate_weekly_goals(last_week_goals)
-    return redirect(url_for('index'))
 
 # --- Function to get last week's goals descriptions ---
 def get_last_week_goals_descriptions():
@@ -366,7 +298,8 @@ def goal_detail(goal_id):
 
                 Based ONLY on the information above, provide a short (1-2 sentences maximum) encouraging message to help this user stay motivated towards their goal today. Do not ask questions. Be positive and direct. Address the user ("You...").
                 """
-                ai_message = generate_gemini_message(prompt)
+                # ai_message = generate_gemini_message(prompt)
+                ai_message = "AI features are disabled."
             except Exception as e:
                  # Catch potential errors during prompt construction or the call itself
                  print(f"🔴 Error during AI message generation logic: {e}")
@@ -381,11 +314,8 @@ def goal_detail(goal_id):
     # Get today's date for the default due date input in the form
     today_date = datetime.date.today().isoformat()
 
-    # --- Add the result of get_last_week_goals_descriptions to the context ---
-    last_week_goals_description = get_last_week_goals_descriptions()
-
     # Pass all necessary variables to the template
-    return render_template('goal_detail.html', goal=goal, tasks=tasks, today_date=today_date, ai_message=ai_message, last_week_goals_description=last_week_goals_description)
+    return render_template('goal_detail.html', goal=goal, tasks=tasks, today_date=today_date, ai_message=ai_message)
 
 # app.py - PART 5: Task Action Routes & Main Execution
 # ==================================================
@@ -458,13 +388,6 @@ def mark_task_missed(task_id):
     else:
         return redirect(url_for('index'))
 
-# Generate the weekly goals to populate the db
-with app.app_context():
-    generate_weekly_goals(None)
-
-    # Test generate new goals with the last week goals
-    last_week_goals_description = get_last_week_goals_descriptions()
-    generate_weekly_goals(last_week_goals_description)
 @app.route('/task/<int:task_id>/reset', methods=['POST'])
 def reset_task_status(task_id):
     """Resets a task status back to Planned."""
@@ -496,6 +419,226 @@ def reset_task_status(task_id):
         return redirect(url_for('goal_detail', goal_id=goal_id))
     else:
         return redirect(url_for('index'))
+
+@app.route('/generate_tasks', methods=['POST'])
+def generate_tasks():
+    """Generates 7 tasks for the next 7 days based on the goal description."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+
+    if not goal_id:
+        flash("Goal ID is missing.", "error")
+        return redirect(url_for('index'))
+
+    try:
+        # Fetch the goal description
+        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        if not goal:
+            flash("Goal not found.", "error")
+            return redirect(url_for('index'))
+
+        goal_description = goal['description']
+
+        # Generate 7 tasks based on the goal description
+        tasks = [
+            f"{goal_description} - Task {i+1}" for i in range(7)
+        ]
+
+        # Insert tasks into the database
+        for i, task in enumerate(tasks):
+            due_date = (datetime.date.today() + datetime.timedelta(days=i)).isoformat()
+            db.execute(
+                "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
+                (goal_id, task, due_date)
+            )
+        db.commit()
+
+        flash("7 tasks for the next 7 days have been generated successfully!", "success")
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", "error")
+    except Exception as e:
+        flash(f"An unexpected error occurred: {e}", "error")
+
+    return redirect(url_for('goal_detail', goal_id=goal_id))
+
+# Add a button to generate tasks until the coming Sunday
+@app.route('/generate_tasks_until_sunday', methods=['POST'])
+def generate_tasks_until_sunday():
+    """Generates tasks pertinent to the goal, one per day until the coming Sunday."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+
+    if not goal_id:
+        flash("Goal ID is missing.", "error")
+        return redirect(url_for('index'))
+
+    try:
+        # Fetch the goal description
+        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        if not goal:
+            flash("Goal not found.", "error")
+            return redirect(url_for('index'))
+
+        goal_description = goal['description']
+
+        # Calculate the number of days until the coming Sunday
+        today = datetime.date.today()
+        days_until_sunday = (6 - today.weekday()) % 7
+
+        # Generate tasks for each day until Sunday
+        tasks = [
+            f"{goal_description} - Task for {today + datetime.timedelta(days=i)}"
+            for i in range(days_until_sunday + 1)
+        ]
+
+        # Insert tasks into the database
+        for i, task in enumerate(tasks):
+            due_date = (today + datetime.timedelta(days=i)).isoformat()
+            db.execute(
+                "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
+                (goal_id, task, due_date)
+            )
+        db.commit()
+
+        flash("Tasks until the coming Sunday have been generated successfully!", "success")
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", "error")
+    except Exception as e:
+        flash(f"An unexpected error occurred: {e}", "error")
+
+    return redirect(url_for('goal_detail', goal_id=goal_id))
+
+@app.route('/generate_tasks_dialog', methods=['POST'])
+def generate_tasks_dialog():
+    """Generates tasks and returns them for display in a dialog box."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+
+    if not goal_id:
+        return {"error": "Goal ID is missing."}, 400
+
+    try:
+        # Fetch the goal description
+        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        if not goal:
+            return {"error": "Goal not found."}, 404
+
+        goal_description = goal['description']
+
+        # Generate 7 tasks based on the goal description
+        tasks = [
+            {"id": i + 1, "description": f"{goal_description} - Task {i + 1}", "due_date": (datetime.date.today() + datetime.timedelta(days=i)).isoformat()}
+            for i in range(7)
+        ]
+
+        return {"tasks": tasks}, 200
+
+    except sqlite3.Error as e:
+        return {"error": f"Database error: {e}"}, 500
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {e}"}, 500
+
+@app.route('/regenerate_task', methods=['POST'])
+def regenerate_task():
+    """Regenerates a single task based on the goal description and context."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+    task_id = request.form.get('task_id')
+
+    if not goal_id or not task_id:
+        return {"error": "Goal ID or Task ID is missing."}, 400
+
+    try:
+        # Fetch the goal description
+        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        if not goal:
+            return {"error": "Goal not found."}, 404
+
+        goal_description = goal['description']
+
+        # Regenerate the task description
+        regenerated_task = {
+            "id": task_id,
+            "description": f"{goal_description} - Regenerated Task {task_id}",
+            "due_date": (datetime.date.today() + datetime.timedelta(days=int(task_id) - 1)).isoformat()
+        }
+
+        return {"task": regenerated_task}, 200
+
+    except sqlite3.Error as e:
+        return {"error": f"Database error: {e}"}, 500
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {e}"}, 500
+
+@app.route('/save_tasks', methods=['POST'])
+def save_tasks():
+    """Saves the generated tasks to the database."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+    tasks = request.json.get('tasks')
+
+    if not goal_id or not tasks:
+        return {"error": "Goal ID or tasks are missing."}, 400
+
+    try:
+        # Insert tasks into the database
+        for task in tasks:
+            db.execute(
+                "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
+                (goal_id, task['description'], task['due_date'])
+            )
+        db.commit()
+
+        return {"message": "Tasks saved successfully!"}, 200
+
+    except sqlite3.Error as e:
+        return {"error": f"Database error: {e}"}, 500
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {e}"}, 500
+
+@app.route('/generate_task_for_today', methods=['POST'])
+def generate_task_for_today():
+    """Generates a task for today based on the goal and progress so far."""
+    db = get_db()
+    goal_id = request.form.get('goal_id')
+
+    if not goal_id:
+        flash("Goal ID is missing.", "error")
+        return redirect(url_for('index'))
+
+    try:
+        # Fetch the goal description
+        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        if not goal:
+            flash("Goal not found.", "error")
+            return redirect(url_for('index'))
+
+        goal_description = goal['description']
+
+        # Check progress so far (e.g., completed tasks)
+        completed_tasks = db.execute(
+            "SELECT COUNT(*) as count FROM tasks WHERE goal_id = ? AND status = 'Completed'",
+            (goal_id,)
+        ).fetchone()['count']
+
+        # Generate a task description dynamically
+        task_description = f"Based on your goal '{goal_description}', what specific task would you like to focus on today?"
+
+        # Insert the task for today
+        today_date = datetime.date.today().isoformat()
+        db.execute(
+            "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
+            (goal_id, task_description, today_date)
+        )
+        db.commit()
+
+        flash("Task for today has been generated successfully! Please review and update it as needed.", "success")
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", "error")
+    except Exception as e:
+        flash(f"An unexpected error occurred: {e}", "error")
+
+    return redirect(url_for('goal_detail', goal_id=goal_id))
 
 # --- Main execution ---
 if __name__ == '__main__':

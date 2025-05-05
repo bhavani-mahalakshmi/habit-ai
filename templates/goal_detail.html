@@ -60,27 +60,6 @@
         .task-actions .btn-reset { background-color: #ffc107; color: #333; border-color: #e0a800;}
         .task-actions .btn-reset:hover { background-color: #e0a800; }
 
-        /* Style for AI coach message box */
-        .ai-coach-message {
-            background-color: #e7f3fe; /* Light blue background */
-            border-left: 5px solid #007bff; /* Blue accent border */
-            padding: 15px 20px;
-            margin-top: 20px;
-            margin-bottom: 25px;
-            border-radius: 4px;
-            font-style: italic;
-            color: #004085; /* Darker blue text */
-            line-height: 1.7;
-        }
-        .ai-coach-message strong {
-            font-style: normal; /* Make the title not italic */
-            display: block;
-            margin-bottom: 5px;
-            color: #0056b3; /* Match heading color */
-            font-weight: 500;
-            font-size: 1.05em;
-        }
-
         /* Flash messages styling */
         .flash { padding: 1rem; margin-bottom: 1.5rem; border: 1px solid transparent; border-radius: .25rem; font-size: 1rem; }
         .flash.success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
@@ -104,20 +83,6 @@
 
         {% if goal %}
             <h1>Goal: {{ goal['description'] }}</h1>
-
-            <!-- AI Coach Message Section -->
-            {% if ai_message %}
-            <div class="ai-coach-message">
-                <strong>✨ Coach's Corner:</strong>
-                {{ ai_message }}
-            </div>
-            {% endif %}
-            <!-- End AI Coach Message Section -->
-             <!-- Form to generate new goals based on previous goals -->
-            <form method="POST" action="/generate_new_goals">
-                <input type="hidden" name="last_week_goals" value="{{ last_week_goals_description }}">
-                <button type="submit">Generate new goals</button>
-            </form>
 
             <!-- Goal Details Section -->
             <div class="goal-details">
@@ -174,17 +139,32 @@
             <!-- Add Task Form Section -->
             <div class="add-task-form">
                <h3>Add a New Daily Task</h3>
-                <form method="post" action="{{ url_for('goal_detail', goal_id=goal['goal_id']) }}"> {# Form POSTs to the current page to add task #}
-                    <div>
-                        <label for="task_description">Task Description:</label>
-                        <input type="text" id="task_description" name="task_description" required>
-                    </div>
-                    <div>
-                        <label for="task_due_date">Due Date:</label>
-                        <input type="date" id="task_due_date" name="task_due_date" value="{{ today_date }}" required>
-                    </div>
-                    <button type="submit">Add Task</button>
+                <form method="post" action="/generate_task_for_today" id="generate-task-form"> {# Form POSTs to generate a task for today #}
+                    <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}"> {# Pass the goal ID #}
+                    <button type="submit">Generate Task for Today</button>
                 </form>
+
+                <!-- Display the generated task -->
+                <div id="generated-task" style="margin-top: 15px;">
+                    {% if generated_task %}
+                        <p><strong>Generated Task:</strong> {{ generated_task['description'] }}</p>
+                        <p><strong>Due Date:</strong> {{ generated_task['due_date'] }}</p>
+
+                        <!-- Regenerate Task Button -->
+                        <form method="post" action="/regenerate_task" id="regenerate-task-form">
+                            <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}">
+                            <input type="hidden" name="task_id" value="{{ generated_task['id'] }}">
+                            <button type="submit">Regenerate Task</button>
+                        </form>
+
+                        <!-- Save Task Button -->
+                        <form method="post" action="/save_tasks" id="save-task-form">
+                            <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}">
+                            <input type="hidden" name="tasks" value='[{"description": "{{ generated_task['description'] }}", "due_date": "{{ generated_task['due_date'] }}"}]'>
+                            <button type="submit">Save Task</button>
+                        </form>
+                    {% endif %}
+                </div>
             </div>
 
         {% else %}
