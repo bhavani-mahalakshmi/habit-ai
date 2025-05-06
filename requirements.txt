@@ -1,5 +1,5 @@
 # requirements.txt
 
-Flask>=2.0  # Core web framework
-google-generativeai>=0.4 # For Gemini API access (use latest appropriate version)
-python-dotenv>=0.19     # For loading environment variables from .env file
+Flask==3.0.0
+python-dotenv==1.0.0
+google-generativeai==0.3.2

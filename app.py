@@ -598,7 +598,7 @@ def save_tasks():
 
 @app.route('/generate_task_for_today', methods=['POST'])
 def generate_task_for_today():
-    """Generates a task for today based on the goal and progress so far."""
+    """Generates a task for today based on the goal details and progress so far."""
     db = get_db()
     goal_id = request.form.get('goal_id')
 
@@ -607,22 +607,59 @@ def generate_task_for_today():
         return redirect(url_for('index'))
 
     try:
-        # Fetch the goal description
-        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        # Fetch the complete goal details
+        goal = db.execute("""
+            SELECT description, positive_reasons, consequences_of_inaction, status 
+            FROM goals WHERE goal_id = ?""", 
+            (goal_id,)
+        ).fetchone()
+        
         if not goal:
             flash("Goal not found.", "error")
             return redirect(url_for('index'))
 
-        goal_description = goal['description']
+        # Get tasks from this week and their status
+        week_start = datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())
+        week_tasks = db.execute("""
+            SELECT description, status, due_date 
+            FROM tasks 
+            WHERE goal_id = ? 
+            AND due_date >= ? 
+            ORDER BY due_date DESC""",
+            (goal_id, week_start.isoformat())
+        ).fetchall()
 
-        # Check progress so far (e.g., completed tasks)
-        completed_tasks = db.execute(
-            "SELECT COUNT(*) as count FROM tasks WHERE goal_id = ? AND status = 'Completed'",
-            (goal_id,)
-        ).fetchone()['count']
+        completed_this_week = sum(1 for task in week_tasks if task['status'] == 'Completed')
+        missed_this_week = sum(1 for task in week_tasks if task['status'] == 'Missed')
 
-        # Generate a task description dynamically
-        task_description = f"Based on your goal '{goal_description}', what specific task would you like to focus on today?"
+        # Generate task prompt based on goal context and progress
+        if GEMINI_CONFIGURED:
+            prompt = f"""
+            Based on this goal and context, generate ONE specific, actionable task for today:
+
+            Goal: {goal['description']}
+            Motivation: {goal['positive_reasons']}
+            Consequences if not achieved: {goal['consequences_of_inaction']}
+
+            Progress this week:
+            - Completed tasks: {completed_this_week}
+            - Missed tasks: {missed_this_week}
+
+            Generate a single, specific task that:
+            1. Directly relates to achieving the goal
+            2. Builds on their progress if they're doing well
+            3. Is more achievable if they've been struggling
+            4. Is concrete and actionable
+            5. Can be completed today
+
+            Return ONLY the task description, nothing else.
+            """
+            
+            task_description = generate_gemini_message(prompt)
+        else:
+            # Fallback if AI is not configured
+            progress_status = "doing well" if completed_this_week > missed_this_week else "working on building consistency"
+            task_description = f"For your goal to {goal['description']}: What's one specific thing you can do today? (You're {progress_status} this week with {completed_this_week} completed tasks)"
 
         # Insert the task for today
         today_date = datetime.date.today().isoformat()
@@ -632,11 +669,13 @@ def generate_task_for_today():
         )
         db.commit()
 
-        flash("Task for today has been generated successfully! Please review and update it as needed.", "success")
+        flash("New task generated for today! Check it out below.", "success")
     except sqlite3.Error as e:
         flash(f"Database error: {e}", "error")
+        print(f"🔴 Database error generating task: {e}")
     except Exception as e:
         flash(f"An unexpected error occurred: {e}", "error")
+        print(f"🔴 Unexpected error generating task: {e}")
 
     return redirect(url_for('goal_detail', goal_id=goal_id))
 
