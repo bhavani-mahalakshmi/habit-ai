@@ -2,7 +2,7 @@
 # ==========================================
 
 import sqlite3
-from flask import Flask, g, render_template, request, redirect, url_for, flash, get_flashed_messages
+from flask import Flask, g, render_template, request, redirect, url_for, flash, get_flashed_messages, jsonify
 import os
 import datetime
 import google.generativeai as genai # Import Gemini library
@@ -542,33 +542,81 @@ def generate_tasks_dialog():
 def regenerate_task():
     """Regenerates a single task based on the goal description and context."""
     db = get_db()
-    goal_id = request.form.get('goal_id')
-    task_id = request.form.get('task_id')
+    data = request.get_json()
+    goal_id = data.get('goal_id')
+    task_id = data.get('task_id')
 
-    if not goal_id or not task_id:
-        return {"error": "Goal ID or Task ID is missing."}, 400
+    if not goal_id:
+        return jsonify({"error": "Goal ID is missing."}), 400
 
     try:
-        # Fetch the goal description
-        goal = db.execute("SELECT description FROM goals WHERE goal_id = ?", (goal_id,)).fetchone()
+        # Fetch the complete goal details
+        goal = db.execute("""
+            SELECT description, positive_reasons, consequences_of_inaction, status 
+            FROM goals WHERE goal_id = ?""", 
+            (goal_id,)
+        ).fetchone()
+        
         if not goal:
-            return {"error": "Goal not found."}, 404
+            return jsonify({"error": "Goal not found."}), 404
 
-        goal_description = goal['description']
+        # Get tasks from this week and their status
+        week_start = datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())
+        week_tasks = db.execute("""
+            SELECT description, status, due_date 
+            FROM tasks 
+            WHERE goal_id = ? 
+            AND due_date >= ? 
+            ORDER BY due_date DESC""",
+            (goal_id, week_start.isoformat())
+        ).fetchall()
 
-        # Regenerate the task description
-        regenerated_task = {
-            "id": task_id,
-            "description": f"{goal_description} - Regenerated Task {task_id}",
-            "due_date": (datetime.date.today() + datetime.timedelta(days=int(task_id) - 1)).isoformat()
-        }
+        completed_this_week = sum(1 for task in week_tasks if task['status'] == 'Completed')
+        missed_this_week = sum(1 for task in week_tasks if task['status'] == 'Missed')
 
-        return {"task": regenerated_task}, 200
+        # Generate task description based on goal context and progress
+        if GEMINI_CONFIGURED:
+            prompt = f"""
+            Based on this goal and context, generate ONE specific, actionable task for today:
 
-    except sqlite3.Error as e:
-        return {"error": f"Database error: {e}"}, 500
+            Goal: {goal['description']}
+            Motivation: {goal['positive_reasons']}
+            Consequences if not achieved: {goal['consequences_of_inaction']}
+
+            Progress this week:
+            - Completed tasks: {completed_this_week}
+            - Missed tasks: {missed_this_week}
+
+            Generate a single, specific task that:
+            1. Directly relates to achieving the goal
+            2. Builds on their progress if they're doing well
+            3. Is more achievable if they've been struggling
+            4. Is concrete and actionable
+            5. Can be completed today
+
+            Return ONLY the task description, nothing else.
+            """
+            
+            task_description = generate_gemini_message(prompt)
+        else:
+            # Fallback if AI is not configured
+            progress_status = "doing well" if completed_this_week > missed_this_week else "working on building consistency"
+            task_description = f"For your goal to {goal['description']}: What's one specific thing you can do today? (You're {progress_status} this week with {completed_this_week} completed tasks)"
+
+        today_date = datetime.date.today().isoformat()
+
+        # Return the regenerated task
+        return jsonify({
+            "task": {
+                "id": task_id,  # Return the same task ID that was passed
+                "description": task_description,
+                "due_date": today_date
+            }
+        })
+
     except Exception as e:
-        return {"error": f"An unexpected error occurred: {e}"}, 500
+        print(f"🔴 Error regenerating task: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/save_tasks', methods=['POST'])
 def save_tasks():
@@ -600,11 +648,11 @@ def save_tasks():
 def generate_task_for_today():
     """Generates a task for today based on the goal details and progress so far."""
     db = get_db()
-    goal_id = request.form.get('goal_id')
+    data = request.get_json()
+    goal_id = data.get('goal_id')
 
     if not goal_id:
-        flash("Goal ID is missing.", "error")
-        return redirect(url_for('index'))
+        return jsonify({"error": "Goal ID is missing."}), 400
 
     try:
         # Fetch the complete goal details
@@ -615,8 +663,7 @@ def generate_task_for_today():
         ).fetchone()
         
         if not goal:
-            flash("Goal not found.", "error")
-            return redirect(url_for('index'))
+            return jsonify({"error": "Goal not found."}), 404
 
         # Get tasks from this week and their status
         week_start = datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())
@@ -632,7 +679,7 @@ def generate_task_for_today():
         completed_this_week = sum(1 for task in week_tasks if task['status'] == 'Completed')
         missed_this_week = sum(1 for task in week_tasks if task['status'] == 'Missed')
 
-        # Generate task prompt based on goal context and progress
+        # Generate task description based on goal context and progress
         if GEMINI_CONFIGURED:
             prompt = f"""
             Based on this goal and context, generate ONE specific, actionable task for today:
@@ -661,23 +708,45 @@ def generate_task_for_today():
             progress_status = "doing well" if completed_this_week > missed_this_week else "working on building consistency"
             task_description = f"For your goal to {goal['description']}: What's one specific thing you can do today? (You're {progress_status} this week with {completed_this_week} completed tasks)"
 
-        # Insert the task for today
         today_date = datetime.date.today().isoformat()
+        
+        # Return the generated task without saving it
+        return jsonify({
+            "task": {
+                "description": task_description,
+                "due_date": today_date
+            }
+        })
+
+    except Exception as e:
+        print(f"🔴 Error generating task: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/save_task', methods=['POST'])
+def save_task():
+    """Saves a single task after user approval."""
+    db = get_db()
+    data = request.get_json()
+    goal_id = data.get('goal_id')
+    task = data.get('task')
+
+    if not goal_id or not task:
+        return jsonify({"error": "Goal ID or task data is missing."}), 400
+
+    try:
         db.execute(
             "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
-            (goal_id, task_description, today_date)
+            (goal_id, task['description'], task['due_date'])
         )
         db.commit()
+        return jsonify({"message": "Task saved successfully!"}), 200
 
-        flash("New task generated for today! Check it out below.", "success")
     except sqlite3.Error as e:
-        flash(f"Database error: {e}", "error")
-        print(f"🔴 Database error generating task: {e}")
+        print(f"🔴 Database error saving task: {e}")
+        return jsonify({"error": f"Database error: {e}"}), 500
     except Exception as e:
-        flash(f"An unexpected error occurred: {e}", "error")
-        print(f"🔴 Unexpected error generating task: {e}")
-
-    return redirect(url_for('goal_detail', goal_id=goal_id))
+        print(f"🔴 Error saving task: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # --- Main execution ---
 if __name__ == '__main__':

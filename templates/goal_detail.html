@@ -66,6 +66,94 @@
         .flash.error { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
         .flash.warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5; }
         .flash.info { color: #055160; background-color: #cff4fc; border-color: #b6effb; }
+
+        /* Modal styles for task generation */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Add spinner and loading styles */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            text-align: center;
+            color: #666;
+            margin: 10px 0;
+            display: none;
+        }
+
+        /* Disabled button state */
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -114,18 +202,10 @@
                                 </div>
                                 <div class="task-actions">
                                     {% if task['status'] == 'Planned' %}
-                                        {# Show Complete/Missed buttons only if task is Planned #}
-                                        <form method="post" action="{{ url_for('mark_task_complete', task_id=task['task_id']) }}">
-                                            <button type="submit" class="btn-complete" title="Mark as Completed">✔</button> {# Shorter text/icon #}
-                                        </form>
-                                        <form method="post" action="{{ url_for('mark_task_missed', task_id=task['task_id']) }}">
-                                            <button type="submit" class="btn-missed" title="Mark as Missed">❌</button> {# Shorter text/icon #}
-                                        </form>
+                                        <button onclick="markTaskComplete('{{ task['task_id'] }}')" class="btn-complete" title="Mark as Completed">✔</button>
+                                        <button onclick="markTaskMissed('{{ task['task_id'] }}')" class="btn-missed" title="Mark as Missed">❌</button>
                                     {% else %}
-                                        {# Show Reset button if task is Completed or Missed #}
-                                        <form method="post" action="{{ url_for('reset_task_status', task_id=task['task_id']) }}">
-                                             <button type="submit" class="btn-reset" title="Reset status to Planned">↺</button> {# Shorter text/icon #}
-                                         </form>
+                                        <button onclick="resetTaskStatus('{{ task['task_id'] }}')" class="btn-reset" title="Reset status to Planned">↺</button>
                                     {% endif %}
                                 </div>
                             </li>
@@ -138,32 +218,23 @@
 
             <!-- Add Task Form Section -->
             <div class="add-task-form">
-               <h3>Add a New Daily Task</h3>
-                <form method="post" action="/generate_task_for_today" id="generate-task-form"> {# Form POSTs to generate a task for today #}
-                    <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}"> {# Pass the goal ID #}
-                    <button type="submit">Generate Task for Today</button>
-                </form>
+                <h3>Add a New Daily Task</h3>
+                <button onclick="generateTask()" class="btn-primary">Generate Task for Today</button>
+            </div>
 
-                <!-- Display the generated task -->
-                <div id="generated-task" style="margin-top: 15px;">
-                    {% if generated_task %}
-                        <p><strong>Generated Task:</strong> {{ generated_task['description'] }}</p>
-                        <p><strong>Due Date:</strong> {{ generated_task['due_date'] }}</p>
-
-                        <!-- Regenerate Task Button -->
-                        <form method="post" action="/regenerate_task" id="regenerate-task-form">
-                            <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}">
-                            <input type="hidden" name="task_id" value="{{ generated_task['id'] }}">
-                            <button type="submit">Regenerate Task</button>
-                        </form>
-
-                        <!-- Save Task Button -->
-                        <form method="post" action="/save_tasks" id="save-task-form">
-                            <input type="hidden" name="goal_id" value="{{ goal['goal_id'] }}">
-                            <input type="hidden" name="tasks" value='[{"description": "{{ generated_task['description'] }}", "due_date": "{{ generated_task['due_date'] }}"}]'>
-                            <button type="submit">Save Task</button>
-                        </form>
-                    {% endif %}
+            <!-- Task Generation Dialog -->
+            <div id="taskDialog" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h4>Generated Task</h4>
+                    <div id="taskContent">
+                        <div id="loadingSpinner" class="spinner"></div>
+                        <p id="loadingText" class="loading-text">Generating your task...</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button onclick="regenerateTask()" id="regenerateButton" class="btn-secondary">Regenerate Task</button>
+                        <button onclick="saveTask()" id="saveButton" class="btn-primary">Add Task</button>
+                        <button onclick="closeDialog()" id="cancelButton" class="btn-cancel">Cancel</button>
+                    </div>
                 </div>
             </div>
 
@@ -174,5 +245,249 @@
         {% endif %}
     </div>
 
+    <script>
+    let currentTask = null;
+    let isLoading = false;
+
+    function setLoading(loading) {
+        isLoading = loading;
+        const spinner = document.getElementById('loadingSpinner');
+        const loadingText = document.getElementById('loadingText');
+        const taskContent = document.getElementById('taskContent');
+        const regenerateButton = document.getElementById('regenerateButton');
+        const saveButton = document.getElementById('saveButton');
+        
+        if (loading) {
+            spinner.style.display = 'block';
+            loadingText.style.display = 'block';
+            regenerateButton.disabled = true;
+            saveButton.disabled = true;
+        } else {
+            spinner.style.display = 'none';
+            loadingText.style.display = 'none';
+            regenerateButton.disabled = false;
+            saveButton.disabled = false;
+        }
+    }
+
+    function generateTask() {
+        if (isLoading) return;
+        
+        const goalId = "{{ goal['goal_id'] }}";
+        document.getElementById('taskDialog').style.display = 'block';
+        setLoading(true);
+        
+        fetch('/generate_task_for_today', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ goal_id: goalId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                closeDialog();
+                return;
+            }
+            currentTask = data.task;
+            displayTask(data.task);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while generating the task.');
+            closeDialog();
+        })
+        .finally(() => {
+            setLoading(false);
+        });
+    }
+
+    function displayTask(task) {
+        const taskContent = document.getElementById('taskContent');
+        const spinner = document.getElementById('loadingSpinner');
+        const loadingText = document.getElementById('loadingText');
+        const regenerateButton = document.getElementById('regenerateButton');
+        const saveButton = document.getElementById('saveButton');
+
+        // Hide loading indicators
+        spinner.style.display = 'none';
+        loadingText.style.display = 'none';
+
+        // Show task content
+        taskContent.innerHTML = `
+            <p><strong>Task:</strong> ${task.description}</p>
+            <p><strong>Due Date:</strong> ${task.due_date}</p>
+        `;
+        
+        // Enable buttons
+        regenerateButton.disabled = false;
+        saveButton.disabled = false;
+        
+        // Update the current task
+        currentTask = task;
+    }
+
+    function regenerateTask() {
+        if (isLoading) return;
+        
+        const goalId = "{{ goal['goal_id'] }}";
+        setLoading(true);
+        
+        fetch('/regenerate_task', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                goal_id: goalId,
+                task_id: currentTask ? currentTask.id : Date.now()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            currentTask = data.task;
+            displayTask(data.task);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while regenerating the task.');
+        })
+        .finally(() => {
+            setLoading(false);
+        });
+    }
+
+    function saveTask() {
+        if (isLoading || !currentTask) {
+            return;
+        }
+
+        const goalId = "{{ goal['goal_id'] }}";
+        setLoading(true);
+        
+        fetch('/save_task', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                goal_id: goalId,
+                task: currentTask
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            closeDialog();
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the task.');
+        })
+        .finally(() => {
+            setLoading(false);
+        });
+    }
+
+    function closeDialog() {
+        document.getElementById('taskDialog').style.display = 'none';
+        currentTask = null;
+        setLoading(false);
+    }
+
+    // Close dialog when clicking outside
+    window.onclick = function(event) {
+        const dialog = document.getElementById('taskDialog');
+        if (event.target === dialog) {
+            closeDialog();
+        }
+    }
+
+    function markTaskComplete(taskId) {
+        if (isLoading) return;
+        setActionButtonsLoading(taskId, true);
+        
+        fetch(`/task/${taskId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the task.');
+            setActionButtonsLoading(taskId, false);
+        });
+    }
+
+    function markTaskMissed(taskId) {
+        if (isLoading) return;
+        setActionButtonsLoading(taskId, true);
+        
+        fetch(`/task/${taskId}/missed`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the task.');
+            setActionButtonsLoading(taskId, false);
+        });
+    }
+
+    function resetTaskStatus(taskId) {
+        if (isLoading) return;
+        setActionButtonsLoading(taskId, true);
+        
+        fetch(`/task/${taskId}/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the task.');
+            setActionButtonsLoading(taskId, false);
+        });
+    }
+
+    function setActionButtonsLoading(taskId, loading) {
+        const buttons = document.querySelectorAll(`.task-actions button`);
+        buttons.forEach(button => {
+            button.disabled = loading;
+        });
+    }
+    </script>
 </body>
 </html>
