@@ -229,6 +229,7 @@
                     <div id="taskContent">
                         <div id="loadingSpinner" class="spinner"></div>
                         <p id="loadingText" class="loading-text">Generating your task...</p>
+                        <div id="generatedTaskDisplay"></div>
                     </div>
                     <div class="modal-actions">
                         <button onclick="regenerateTask()" id="regenerateButton" class="btn-secondary">Regenerate Task</button>
@@ -305,9 +306,9 @@
     }
 
     function displayTask(task) {
-        const taskContent = document.getElementById('taskContent');
         const spinner = document.getElementById('loadingSpinner');
         const loadingText = document.getElementById('loadingText');
+        const generatedTaskDisplay = document.getElementById('generatedTaskDisplay');
         const regenerateButton = document.getElementById('regenerateButton');
         const saveButton = document.getElementById('saveButton');
 
@@ -316,7 +317,7 @@
         loadingText.style.display = 'none';
 
         // Show task content
-        taskContent.innerHTML = `
+        generatedTaskDisplay.innerHTML = `
             <p><strong>Task:</strong> ${task.description}</p>
             <p><strong>Due Date:</strong> ${task.due_date}</p>
         `;
@@ -333,6 +334,15 @@
         if (isLoading) return;
         
         const goalId = "{{ goal['goal_id'] }}";
+        const spinner = document.getElementById('loadingSpinner');
+        const loadingText = document.getElementById('loadingText');
+        const generatedTaskDisplay = document.getElementById('generatedTaskDisplay');
+
+        // Show loading indicators
+        spinner.style.display = 'block';
+        loadingText.style.display = 'block';
+        generatedTaskDisplay.innerHTML = '';
+        
         setLoading(true);
         
         fetch('/regenerate_task', {
