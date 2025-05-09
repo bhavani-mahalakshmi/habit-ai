@@ -724,29 +724,30 @@ def generate_task_for_today():
 
 @app.route('/save_task', methods=['POST'])
 def save_task():
-    """Saves a single task after user approval."""
-    db = get_db()
     data = request.get_json()
     goal_id = data.get('goal_id')
     task = data.get('task')
 
     if not goal_id or not task:
-        return jsonify({"error": "Goal ID or task data is missing."}), 400
+        return jsonify({'error': 'Missing required data'}), 400
 
     try:
-        db.execute(
-            "INSERT INTO tasks (goal_id, description, due_date, status) VALUES (?, ?, ?, 'Planned')",
-            (goal_id, task['description'], task['due_date'])
-        )
-        db.commit()
-        return jsonify({"message": "Task saved successfully!"}), 200
+        conn = get_db()
+        cursor = conn.cursor()
 
-    except sqlite3.Error as e:
-        print(f"🔴 Database error saving task: {e}")
-        return jsonify({"error": f"Database error: {e}"}), 500
+        # Insert the task
+        cursor.execute('''
+            INSERT INTO tasks (goal_id, description, due_date, status)
+            VALUES (?, ?, ?, ?)
+        ''', (goal_id, task['description'], task['due_date'], task.get('status', 'Planned')))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
     except Exception as e:
-        print(f"🔴 Error saving task: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"Error saving task: {str(e)}")
+        return jsonify({'error': 'Failed to save task'}), 500
 
 # --- Main execution ---
 if __name__ == '__main__':

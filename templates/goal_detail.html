@@ -219,7 +219,28 @@
             <!-- Add Task Form Section -->
             <div class="add-task-form">
                 <h3>Add a New Daily Task</h3>
-                <button onclick="generateTask()" class="btn-primary">Generate Task for Today</button>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <button onclick="generateTask()" class="btn-primary">Generate Task for Today</button>
+                    <button onclick="showCustomTaskForm()" class="btn-secondary">Add Custom Task</button>
+                </div>
+
+                <!-- Custom Task Form -->
+                <div id="customTaskForm" style="display: none;">
+                    <form onsubmit="submitCustomTask(event)">
+                        <div style="margin-bottom: 15px;">
+                            <label for="taskDescription">Task Description:</label>
+                            <input type="text" id="taskDescription" required placeholder="Enter your task description">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="taskDueDate">Due Date:</label>
+                            <input type="date" id="taskDueDate" required>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn-primary">Save Task</button>
+                            <button type="button" onclick="hideCustomTaskForm()" class="btn-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- Task Generation Dialog -->
@@ -496,6 +517,56 @@
         const buttons = document.querySelectorAll(`.task-actions button`);
         buttons.forEach(button => {
             button.disabled = loading;
+        });
+    }
+
+    function showCustomTaskForm() {
+        document.getElementById('customTaskForm').style.display = 'block';
+    }
+
+    function hideCustomTaskForm() {
+        document.getElementById('customTaskForm').style.display = 'none';
+    }
+
+    function submitCustomTask(event) {
+        event.preventDefault();
+        if (isLoading) return;
+
+        const description = document.getElementById('taskDescription').value;
+        const dueDate = document.getElementById('taskDueDate').value;
+        const goalId = "{{ goal['goal_id'] }}";
+
+        setLoading(true);
+
+        fetch('/save_task', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                goal_id: goalId,
+                task: {
+                    description: description,
+                    due_date: dueDate,
+                    status: 'Planned'
+                }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            hideCustomTaskForm();
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the custom task.');
+        })
+        .finally(() => {
+            setLoading(false);
         });
     }
     </script>
