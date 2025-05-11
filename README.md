@@ -130,6 +130,9 @@ The task generation system uses a sophisticated algorithm that considers multipl
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Copyright
+
+© 2025 Bhavani Mahalakshmi Gowri Sankar. All rights reserved.
+
+Connect with me on [LinkedIn](https://www.linkedin.com/in/bhavani-mahalakshmi-gowri-sankar-6b6a54119/) 
